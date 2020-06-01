@@ -1,0 +1,173 @@
+#!/bin/bash
+
+# Author: Marcelo Vázquez (aka S4vitar)
+
+#Colours
+greenColour="\e[0;32m\033[1m"
+endColour="\033[0m\e[0m"
+redColour="\e[0;31m\033[1m"
+blueColour="\e[0;34m\033[1m"
+yellowColour="\e[0;33m\033[1m"
+purpleColour="\e[0;35m\033[1m"
+turquoiseColour="\e[0;36m\033[1m"
+grayColour="\e[0;37m\033[1m"
+
+declare -r tmp_file="/dev/shm/tmp_file"
+
+function ctrl_c(){
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Exiting...${endColour}"; sleep 1
+	rm $tmp_file 2>/dev/null
+	tput cnorm; exit 1
+}
+
+function helpPanel(){
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Uso: rpcenum${endColour}"
+	echo -e "\n\t${purpleColour}e)${endColour}${yellowColour} Enumeration Mode${endColour}"
+	echo -e "\n\t\t${grayColour}DUsers${endColour}${redColour} (Domain Users)${endColour}"
+	echo -e "\t\t${grayColour}DAUsers ${redColour}(Domain Admin Users)${endColour}"
+	echo -e "\t\t${grayColour}DGroup ${redColour}(Domain Groups)${endColour}"
+	echo -e "\t\t${grayColour}DInfo ${redColour}(Domain Info)${endColour}"
+	echo -e "\n\t${purpleColour}i)${endColour}${yellowColour} Host IP Address${endColour}"
+	echo -e "\n\t${purpleColour}h)${endColour}${yellowColour} Show this help pannel${endColour}"
+	exit 1
+}
+
+function printTable()
+{
+    local -r delimiter="${1}"
+    local -r data="$(removeEmptyLines "${2}")"
+
+    if [[ "${delimiter}" != '' && "$(isEmptyString "${data}")" = 'false' ]]
+    then
+        local -r numberOfLines="$(wc -l <<< "${data}")"
+
+        if [[ "${numberOfLines}" -gt '0' ]]
+        then
+            local table=''
+            local i=1
+
+            for ((i = 1; i <= "${numberOfLines}"; i = i + 1))
+            do
+                local line=''
+                line="$(sed "${i}q;d" <<< "${data}")"
+
+                local numberOfColumns='0'
+                numberOfColumns="$(awk -F "${delimiter}" '{print NF}' <<< "${line}")"
+
+                if [[ "${i}" -eq '1' ]]
+                then
+                    table="${table}$(printf '%s#+' "$(repeatString '#+' "${numberOfColumns}")")"
+                fi
+
+                table="${table}\n"
+
+                local j=1
+
+                for ((j = 1; j <= "${numberOfColumns}"; j = j + 1))
+                do
+                    table="${table}$(printf '#| %s' "$(cut -d "${delimiter}" -f "${j}" <<< "${line}")")"
+                done
+
+                table="${table}#|\n"
+
+                if [[ "${i}" -eq '1' ]] || [[ "${numberOfLines}" -gt '1' && "${i}" -eq "${numberOfLines}" ]]
+                then
+                    table="${table}$(printf '%s#+' "$(repeatString '#+' "${numberOfColumns}")")"
+                fi
+            done
+
+            if [[ "$(isEmptyString "${table}")" = 'false' ]]
+            then
+                echo -e "${table}" | column -s '#' -t | awk '/^\+/{gsub(" ", "-", $0)}1'
+            fi
+        fi
+    fi
+}
+
+function removeEmptyLines()
+{
+    local -r content="${1}"
+
+    echo -e "${content}" | sed '/^\s*$/d'
+}
+
+function repeatString()
+{
+    local -r string="${1}"
+    local -r numberToRepeat="${2}"
+
+    if [[ "${string}" != '' && "${numberToRepeat}" =~ ^[1-9][0-9]*$ ]]
+    then
+        local -r result="$(printf "%${numberToRepeat}s")"
+        echo -e "${result// /${string}}"
+    fi
+}
+
+function isEmptyString()
+{
+    local -r string="${1}"
+
+    if [[ "$(trimString "${string}")" = '' ]]
+    then
+        echo 'true' && return 0
+    fi
+
+    echo 'false' && return 1
+}
+
+function trimString()
+{
+    local -r string="${1}"
+
+    sed 's,^[[:blank:]]*,,' <<< "${string}" | sed 's,[[:blank:]]*$,,'
+}
+
+function extract_DUsers(){
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Enumerating Domain Users...${endColour}\n"
+	domain_users=$(rpcclient -U "" $1 -c "enumdomusers" -N | grep -oP '\[.*?\]' | grep -v 0x | tr -d '[]')
+
+	echo "Users" > $tmp_file && for user in $domain_users; do echo "$user" >> $tmp_file; done
+
+	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
+}
+
+function beginEnumeration(){
+
+	tput civis; nmap -p139 --open -T5 -v -n $host_ip | grep open > /dev/null 2>&1 && port_status=$?
+
+	if [ "$port_status" == "0" ]; then
+		case $enum_mode in
+			DUsers)
+				extract_DUsers $host_ip
+				;;
+			DAUsers)
+				echo "Buenísima x2"
+				;;
+		esac
+	else
+		echo -e "\n${redColour}Port 139 seems to be closed on $host_ip${endColour}"
+		tput cnorm; exit 0
+	fi
+}
+
+# Main Function
+
+if [ "$(echo $UID)" == "0" ]; then
+	declare -i parameter_counter=0; while getopts ":e:i:h:" arg; do
+		case $arg in
+			e) enum_mode=$OPTARG; let parameter_counter+=1;;
+			i) host_ip=$OPTARG; let parameter_counter+=1;;
+			h) helpPanel;;
+		esac
+	done
+
+	if [ $parameter_counter -ne 2 ]; then
+		helpPanel
+	else
+		beginEnumeration
+		tput cnorm; rm $tmp_file 2>/dev/null
+	fi
+else
+	echo -e "\n${redColour}[*] It is necessary to run the program as root${endColour}\n"
+fi
