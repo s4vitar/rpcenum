@@ -15,15 +15,18 @@ grayColour="\e[0;37m\033[1m"
 declare -r tmp_file="/dev/shm/tmp_file"
 
 function ctrl_c(){
+
 	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Exiting...${endColour}"; sleep 1
 	rm $tmp_file 2>/dev/null
 	tput cnorm; exit 1
 }
 
 function helpPanel(){
+
 	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Uso: rpcenum${endColour}"
 	echo -e "\n\t${purpleColour}e)${endColour}${yellowColour} Enumeration Mode${endColour}"
 	echo -e "\n\t\t${grayColour}DUsers${endColour}${redColour} (Domain Users)${endColour}"
+	echo -e "\t\t${grayColour}DUsersInfo${endColour}${redColour} (Domain Users with info)${endColour}"
 	echo -e "\t\t${grayColour}DAUsers ${redColour}(Domain Admin Users)${endColour}"
 	echo -e "\t\t${grayColour}DGroup ${redColour}(Domain Groups)${endColour}"
 	echo -e "\t\t${grayColour}DInfo ${redColour}(Domain Info)${endColour}"
@@ -32,8 +35,8 @@ function helpPanel(){
 	exit 1
 }
 
-function printTable()
-{
+function printTable(){
+
     local -r delimiter="${1}"
     local -r data="$(removeEmptyLines "${2}")"
 
@@ -84,15 +87,14 @@ function printTable()
     fi
 }
 
-function removeEmptyLines()
-{
-    local -r content="${1}"
+function removeEmptyLines(){
 
+    local -r content="${1}"
     echo -e "${content}" | sed '/^\s*$/d'
 }
 
-function repeatString()
-{
+function repeatString(){
+
     local -r string="${1}"
     local -r numberToRepeat="${2}"
 
@@ -103,8 +105,8 @@ function repeatString()
     fi
 }
 
-function isEmptyString()
-{
+function isEmptyString(){
+
     local -r string="${1}"
 
     if [[ "$(trimString "${string}")" = '' ]]
@@ -115,10 +117,9 @@ function isEmptyString()
     echo 'false' && return 1
 }
 
-function trimString()
-{
-    local -r string="${1}"
+function trimString(){
 
+    local -r string="${1}"
     sed 's,^[[:blank:]]*,,' <<< "${string}" | sed 's,[[:blank:]]*$,,'
 }
 
@@ -132,6 +133,34 @@ function extract_DUsers(){
 	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
 }
 
+function extract_DUsers_Info(){
+
+	extract_DUsers $1
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Listing domain users with description...${endColour}\n"
+
+	echo "User,Description" > $tmp_file
+	for user in $domain_users; do
+		rpcclient -U "" $1 -c "queryuser $user" -N | grep -E 'User Name|Description' | cut -d ':' -f 2-100 | sed 's/\t//' | tr '\n' ',' | sed 's/.$//' >> $tmp_file
+		echo -e "\n" >> $tmp_file
+	done
+
+	echo -ne "${blueColour}"; printTable ',' "$(cat $tmp_file)"; echo -ne "${endColour}"
+}
+
+function extract_DAUsers(){
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Enumerating Domain Admin Users...${endColour}\n"
+	rid_dagroup=$(rpcclient -U "" $1 -c "enumdomgroups" -N | grep "Domain Admins" | awk 'NF{print $NF}' | grep -oP '\[.*?\]' | tr -d '[]')
+	rid_dausers=$(rpcclient -U "" $1 -c "querygroupmem $rid_dagroup" -N | awk '{print $1}' | grep -oP '\[.*?\]' | tr -d '[]')
+
+	echo "DomainAdminUsers" > $tmp_file; for da_user_rid in $rid_dausers; do
+		rpcclient -U "" $1 -c "queryuser $da_user_rid" -N | grep 'User Name'| awk 'NF{print $NF}' >> $tmp_file
+	done
+
+	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
+}
+
 function beginEnumeration(){
 
 	tput civis; nmap -p139 --open -T5 -v -n $host_ip | grep open > /dev/null 2>&1 && port_status=$?
@@ -141,8 +170,11 @@ function beginEnumeration(){
 			DUsers)
 				extract_DUsers $host_ip
 				;;
+			DUsersInfo)
+				extract_DUsers_Info $host_ip
+				;;
 			DAUsers)
-				echo "Buenísima x2"
+				extract_DAUsers $host_ip
 				;;
 		esac
 	else
