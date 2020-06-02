@@ -36,3 +36,20 @@ El modo de enumeración **DUsersInfo**, nos permitirá obtener un listado de los
         alt="DUsersInfo"
     style="float: left; margin-right: 10px;" />
 </p>
+
+El modo de enumeración **DAUsers**, nos permitirá obtener un listado de los usuarios existentes administradores del dominio (siempre y cuando el **Null Session** esté habilitado). Esta parte es crucial, puesto que el atacante siempre va a ir en busca de las credenciales de estos, dado que poseen privilegio total sobre el dominio.
+
+<p align="center">
+    <img src="images/image4.png"
+        alt="DUsersInfo"
+    style="float: left; margin-right: 10px;" />
+</p>
+
+El modo de enumeración **DGroups**, nos permitirá obtener un listado de los grupos existentes del dominio (siempre y cuando el **Null Session** esté habilitado).
+
+<p align="center">
+    <img src="images/image5.png"
+        alt="DUsersInfo"
+    style="float: left; margin-right: 10px;" />
+</p>
+
