@@ -18,3 +18,13 @@ La ejecución de la herramienta mostrará el siguiente panel de ayuda:
 		alt="Panel de ayuda"
 	style="float: left; margin-right: 10px;" />
 </p>
+
+Para su correcta ejecución, es necesario especificar el modo de enumeración a usar, siendo los representados en la imagen adjunta.
+
+El modo de enumeración **DUsers**, nos permitirá obtener un listado de los usuarios existentes en el dominio (siempre y cuando el **Null Session** esté habilitado):
+
+<p align="center">
+	<img src="images/image1.png"
+		alt="DUsers"
+	style="float: left; margin-right: 10px;" />
+</p>
