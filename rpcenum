@@ -31,6 +31,7 @@ function helpPanel(){
 	echo -e "\t\t${grayColour}DUsersInfo${endColour}${redColour} (Domain Users with info)${endColour}"
 	echo -e "\t\t${grayColour}DAUsers ${redColour}(Domain Admin Users)${endColour}"
 	echo -e "\t\t${grayColour}DGroups ${redColour}(Domain Groups)${endColour}"
+	echo -e "\t\t${grayColour}All ${redColour}(All Modes)${endColour}"
 	echo -e "\n\t${purpleColour}i)${endColour}${yellowColour} Host IP Address${endColour}"
 	echo -e "\n\t${purpleColour}h)${endColour}${yellowColour} Show this help pannel${endColour}"
 	exit 1
@@ -132,6 +133,7 @@ function extract_DUsers(){
 	echo "Users" > $tmp_file && for user in $domain_users; do echo "$user" >> $tmp_file; done
 
 	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	rm $tmp_file 2>/dev/null
 }
 
 function extract_DUsers_Info(){
@@ -169,6 +171,7 @@ function extract_DAUsers(){
 	done
 
 	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	rm $tmp_file 2>/dev/null
 }
 
 function extract_DGroups(){
@@ -188,6 +191,14 @@ function extract_DGroups(){
 
 	rm $tmp_file $tmp_file3 2>/dev/null && mv $tmp_file2 $tmp_file
 	echo -ne "${blueColour}"; printTable ',' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	rm $tmp_file 2>/dev/null
+}
+
+function extract_All(){
+	extract_DUsers $1
+	extract_DUsers_Info $1
+	extract_DAUsers $1
+	extract_DGroups $1
 }
 
 function beginEnumeration(){
@@ -207,6 +218,9 @@ function beginEnumeration(){
 				;;
 			DGroups)
 				extract_DGroups $host_ip
+				;;
+			All)
+				extract_All $host_ip
 				;;
 			*)
 				echo -e "\n${redColour}[!] Opción no válida${endColour}"
@@ -235,7 +249,7 @@ if [ "$(echo $UID)" == "0" ]; then
 		helpPanel
 	else
 		beginEnumeration
-		tput cnorm; rm $tmp_file 2>/dev/null
+		tput cnorm
 	fi
 else
 	echo -e "\n${redColour}[*] It is necessary to run the program as root${endColour}\n"
