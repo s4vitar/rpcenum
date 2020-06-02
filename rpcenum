@@ -14,6 +14,7 @@ grayColour="\e[0;37m\033[1m"
 
 declare -r tmp_file="/dev/shm/tmp_file"
 declare -r tmp_file2="/dev/shm/tmp_file2"
+
 function ctrl_c(){
 
 	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Exiting...${endColour}"; sleep 1
@@ -135,16 +136,17 @@ function extract_DUsers(){
 
 function extract_DUsers_Info(){
 
-	extract_DUsers $1
+	extract_DUsers $1 > /dev/null 2>&1
 
 	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Listing domain users with description...${endColour}\n"
 
 	for user in $domain_users; do
 		rpcclient -U "" $1 -c "queryuser $user" -N | grep -E 'User Name|Description' | cut -d ':' -f 2-100 | sed 's/\t//' | tr '\n' ',' | sed 's/.$//' >> $tmp_file
-		echo -e "\n" >> $tmp_file
+		echo -e '\n' >> $tmp_file
 	done
 
 	echo "User,Description" > $tmp_file2
+
 	cat $tmp_file | sed '/^\s*$/d' | while read user_representation; do
 		if [ "$(echo $user_representation | awk '{print $2}' FS=',')" ]; then
 			echo "$(echo $user_representation | awk '{print $1}' FS=','),$(echo $user_representation | awk '{print $2}' FS=',')" >> $tmp_file2
@@ -153,6 +155,7 @@ function extract_DUsers_Info(){
 
 	rm $tmp_file; mv $tmp_file2 $tmp_file
 	sleep 1; echo -ne "${blueColour}"; printTable ',' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	rm $tmp_file 2>/dev/null
 }
 
 function extract_DAUsers(){
