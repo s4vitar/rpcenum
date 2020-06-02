@@ -53,3 +53,6 @@ El modo de enumeración **DGroups**, nos permitirá obtener un listado de los gr
     style="float: left; margin-right: 10px;" />
 </p>
 
+Por último, el modo de enumeración **All**, nos efectuará todas las enumeraciones de forma simultánea, pudiendo así visualizar la información más relevante del dominio.
+
+**ANOTACIÓN**: Es posible que se añadan nuevas opciones a la herramienta.
