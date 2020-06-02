@@ -14,6 +14,7 @@ grayColour="\e[0;37m\033[1m"
 
 declare -r tmp_file="/dev/shm/tmp_file"
 declare -r tmp_file2="/dev/shm/tmp_file2"
+declare -r tmp_file3="/dev/shm/tmp_file3"
 
 function ctrl_c(){
 
@@ -30,7 +31,6 @@ function helpPanel(){
 	echo -e "\t\t${grayColour}DUsersInfo${endColour}${redColour} (Domain Users with info)${endColour}"
 	echo -e "\t\t${grayColour}DAUsers ${redColour}(Domain Admin Users)${endColour}"
 	echo -e "\t\t${grayColour}DGroups ${redColour}(Domain Groups)${endColour}"
-	echo -e "\t\t${grayColour}DInfo ${redColour}(Domain Info)${endColour}"
 	echo -e "\n\t${purpleColour}i)${endColour}${yellowColour} Host IP Address${endColour}"
 	echo -e "\n\t${purpleColour}h)${endColour}${yellowColour} Show this help pannel${endColour}"
 	exit 1
@@ -175,10 +175,19 @@ function extract_DGroups(){
 
 	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Enumerating Domain Groups...${endColour}\n"
 
-	echo "DomainGroups" > $tmp_file
-	rpcclient -U "" $host_ip -c "enumdomgroups" -N | grep -oP '\[.*?\]' | grep -v 0x | tr -d '[]' | tr ' ' '_' >> $tmp_file
+	rpcclient -U "" $host_ip -c "enumdomgroups" -N | grep -oP '\[.*?\]' | grep "0x" | tr -d '[]' >> $tmp_file
 
-	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	echo "DomainGroup,Description" > $tmp_file2
+	cat $tmp_file | while read rid_domain_groups; do
+		rpcclient -U "" $host_ip -c "querygroup $rid_domain_groups" -N | grep -E 'Group Name|Description' | sed 's/\t//' > $tmp_file3
+		group_name=$(cat $tmp_file3 | grep "Group Name" | awk '{print $2}' FS=":")
+		group_description=$(cat $tmp_file3 | grep "Description" | awk '{print $2}' FS=":")
+
+		echo "$(echo $group_name),$(echo $group_description)" >> $tmp_file2
+	done
+
+	rm $tmp_file $tmp_file3 2>/dev/null && mv $tmp_file2 $tmp_file
+	echo -ne "${blueColour}"; printTable ',' "$(cat $tmp_file)"; echo -ne "${endColour}"
 }
 
 function beginEnumeration(){
