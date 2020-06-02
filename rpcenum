@@ -29,7 +29,7 @@ function helpPanel(){
 	echo -e "\n\t\t${grayColour}DUsers${endColour}${redColour} (Domain Users)${endColour}"
 	echo -e "\t\t${grayColour}DUsersInfo${endColour}${redColour} (Domain Users with info)${endColour}"
 	echo -e "\t\t${grayColour}DAUsers ${redColour}(Domain Admin Users)${endColour}"
-	echo -e "\t\t${grayColour}DGroup ${redColour}(Domain Groups)${endColour}"
+	echo -e "\t\t${grayColour}DGroups ${redColour}(Domain Groups)${endColour}"
 	echo -e "\t\t${grayColour}DInfo ${redColour}(Domain Info)${endColour}"
 	echo -e "\n\t${purpleColour}i)${endColour}${yellowColour} Host IP Address${endColour}"
 	echo -e "\n\t${purpleColour}h)${endColour}${yellowColour} Show this help pannel${endColour}"
@@ -171,6 +171,16 @@ function extract_DAUsers(){
 	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
 }
 
+function extract_DGroups(){
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Enumerating Domain Groups...${endColour}\n"
+
+	echo "DomainGroups" > $tmp_file
+	rpcclient -U "" $host_ip -c "enumdomgroups" -N | grep -oP '\[.*?\]' | grep -v 0x | tr -d '[]' | tr ' ' '_' >> $tmp_file
+
+	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
+}
+
 function beginEnumeration(){
 
 	tput civis; nmap -p139 --open -T5 -v -n $host_ip | grep open > /dev/null 2>&1 && port_status=$?
@@ -185,6 +195,9 @@ function beginEnumeration(){
 				;;
 			DAUsers)
 				extract_DAUsers $host_ip
+				;;
+			DGroups)
+				extract_DGroups $host_ip
 				;;
 		esac
 	else
