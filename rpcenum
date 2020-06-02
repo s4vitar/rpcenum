@@ -204,32 +204,38 @@ function extract_All(){
 function beginEnumeration(){
 
 	tput civis; nmap -p139 --open -T5 -v -n $host_ip | grep open > /dev/null 2>&1 && port_status=$?
+	rpcclient -U "" $host_ip -c "enumdomusers" -N > /dev/null 2>&1
 
-	if [ "$port_status" == "0" ]; then
-		case $enum_mode in
-			DUsers)
-				extract_DUsers $host_ip
-				;;
-			DUsersInfo)
-				extract_DUsers_Info $host_ip
-				;;
-			DAUsers)
-				extract_DAUsers $host_ip
-				;;
-			DGroups)
-				extract_DGroups $host_ip
-				;;
-			All)
-				extract_All $host_ip
-				;;
-			*)
-				echo -e "\n${redColour}[!] Opción no válida${endColour}"
-				helpPanel
-				exit 1
-				;;
-		esac
+	if [ "$(echo $?)" == "0" ]; then
+		if [ "$port_status" == "0" ]; then
+			case $enum_mode in
+				DUsers)
+					extract_DUsers $host_ip
+					;;
+				DUsersInfo)
+					extract_DUsers_Info $host_ip
+					;;
+				DAUsers)
+					extract_DAUsers $host_ip
+					;;
+				DGroups)
+					extract_DGroups $host_ip
+					;;
+				All)
+					extract_All $host_ip
+					;;
+				*)
+					echo -e "\n${redColour}[!] Opción no válida${endColour}"
+					helpPanel
+					exit 1
+					;;
+			esac
+		else
+			echo -e "\n${redColour}Port 139 seems to be closed on $host_ip${endColour}"
+			tput cnorm; exit 0
+		fi
 	else
-		echo -e "\n${redColour}Port 139 seems to be closed on $host_ip${endColour}"
+		echo -e "\n${redColour}[!] Error: Access Denied${endColour}"
 		tput cnorm; exit 0
 	fi
 }
