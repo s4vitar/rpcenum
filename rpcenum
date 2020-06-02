@@ -199,6 +199,11 @@ function beginEnumeration(){
 			DGroups)
 				extract_DGroups $host_ip
 				;;
+			*)
+				echo -e "\n${redColour}[!] Opción no válida${endColour}"
+				helpPanel
+				exit 1
+				;;
 		esac
 	else
 		echo -e "\n${redColour}Port 139 seems to be closed on $host_ip${endColour}"
