@@ -28,3 +28,11 @@ El modo de enumeración **DUsers**, nos permitirá obtener un listado de los usu
 		alt="DUsers"
 	style="float: left; margin-right: 10px;" />
 </p>
+
+El modo de enumeración **DUsersInfo**, nos permitirá obtener un listado de los usuarios existentes en el dominio con descripción (siempre y cuando el **Null Session** esté habilitado), pudiendo así identificar a usuarios potenciales:
+
+<p align="center">
+    <img src="images/image3.png"
+        alt="DUsersInfo"
+    style="float: left; margin-right: 10px;" />
+</p>
