@@ -1,6 +1,6 @@
 # RPCenum
 
-La versión V2, es un fork no oficial, para darle soporte a la herramienta a utilizar credenciales para enumerar RPC.
+**La versión V2, es un fork no oficial, para darle soporte a la herramienta a utilizar credenciales para enumerar RPC.**
 
 Herramienta en Bash ideal para efectuar una enumeración básica y extraer la información más relevante de un dominio vía rpcclient. 
 
