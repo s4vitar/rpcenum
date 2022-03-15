@@ -1,4 +1,4 @@
-# RPCenum
+# RPCenumV2
 
 **La versión V2, es un fork no oficial, para darle soporte a la herramienta a utilizar credenciales para enumerar RPC.**
 
