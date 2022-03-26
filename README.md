@@ -1,4 +1,6 @@
-# RPCenum
+# RPCenumV2
+
+**La versión V2, es un fork no oficial, para darle soporte a la herramienta a utilizar credenciales para enumerar RPC.**
 
 Herramienta en Bash ideal para efectuar una enumeración básica y extraer la información más relevante de un dominio vía rpcclient. 
 
@@ -55,4 +57,3 @@ El modo de enumeración **DGroups**, nos permitirá obtener un listado de los gr
 
 Por último, el modo de enumeración **All**, nos efectuará todas las enumeraciones de forma simultánea, pudiendo así visualizar la información más relevante del dominio.
 
-**ANOTACIÓN**: Es posible que se añadan nuevas opciones a la herramienta.

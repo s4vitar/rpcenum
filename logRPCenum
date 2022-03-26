@@ -1,0 +1,267 @@
+#!/bin/bash
+
+# Author: Marcelo Vázquez (aka S4vitar)
+# V2 update: Mario Mansilla (aka creep33)
+
+#Colors
+greenColour="\e[0;32m\033[1m"
+endColour="\033[0m\e[0m"
+redColour="\e[0;31m\033[1m"
+blueColour="\e[0;34m\033[1m"
+yellowColour="\e[0;33m\033[1m"
+purpleColour="\e[0;35m\033[1m"
+turquoiseColour="\e[0;36m\033[1m"
+grayColour="\e[0;37m\033[1m"
+
+declare -r tmp_file="/dev/shm/tmp_file"
+declare -r tmp_file2="/dev/shm/tmp_file2"
+declare -r tmp_file3="/dev/shm/tmp_file3"
+
+function ctrl_c(){
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Exiting...${endColour}"; sleep 1
+	rm $tmp_file 2>/dev/null
+	tput cnorm; exit 1
+}
+
+function helpPanel(){
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Uso: rpcenum${endColour}"
+	echo -e "\n\t${purpleColour}e)${endColour}${yellowColour} Enumeration Mode${endColour}"
+	echo -e "\n\t\t${grayColour}DUsers${endColour}${redColour} (Domain Users)${endColour}"
+	echo -e "\t\t${grayColour}DUsersInfo${endColour}${redColour} (Domain Users with info)${endColour}"
+	echo -e "\t\t${grayColour}DAUsers ${redColour}(Domain Admin Users)${endColour}"
+	echo -e "\t\t${grayColour}DGroups ${redColour}(Domain Groups)${endColour}"
+	echo -e "\t\t${grayColour}All ${redColour}(All Modes)${endColour}"
+	echo -e "\n\t${purpleColour}i)${endColour}${yellowColour} Host IP Address${endColour}"
+        echo -e "\n\t${purpleColour}u)${endColour}${yellowColour} Username${endColour}"
+        echo -e "\n\t${purpleColour}p)${endColour}${yellowColour} Password${endColour}"
+	echo -e "\n\t${purpleColour}h)${endColour}${yellowColour} Show this help pannel${endColour}"
+	exit 1
+}
+
+function printTable(){
+
+    local -r delimiter="${1}"
+    local -r data="$(removeEmptyLines "${2}")"
+
+    if [[ "${delimiter}" != '' && "$(isEmptyString "${data}")" = 'false' ]]
+    then
+        local -r numberOfLines="$(wc -l <<< "${data}")"
+
+        if [[ "${numberOfLines}" -gt '0' ]]
+        then
+            local table=''
+            local i=1
+
+            for ((i = 1; i <= "${numberOfLines}"; i = i + 1))
+            do
+                local line=''
+                line="$(sed "${i}q;d" <<< "${data}")"
+
+                local numberOfColumns='0'
+                numberOfColumns="$(awk -F "${delimiter}" '{print NF}' <<< "${line}")"
+
+                if [[ "${i}" -eq '1' ]]
+                then
+                    table="${table}$(printf '%s#+' "$(repeatString '#+' "${numberOfColumns}")")"
+                fi
+
+                table="${table}\n"
+
+                local j=1
+
+                for ((j = 1; j <= "${numberOfColumns}"; j = j + 1))
+                do
+                    table="${table}$(printf '#| %s' "$(cut -d "${delimiter}" -f "${j}" <<< "${line}")")"
+                done
+
+                table="${table}#|\n"
+
+                if [[ "${i}" -eq '1' ]] || [[ "${numberOfLines}" -gt '1' && "${i}" -eq "${numberOfLines}" ]]
+                then
+                    table="${table}$(printf '%s#+' "$(repeatString '#+' "${numberOfColumns}")")"
+                fi
+            done
+
+            if [[ "$(isEmptyString "${table}")" = 'false' ]]
+            then
+                echo -e "${table}" | column -s '#' -t | awk '/^\+/{gsub(" ", "-", $0)}1'
+            fi
+        fi
+    fi
+}
+
+function removeEmptyLines(){
+
+    local -r content="${1}"
+    echo -e "${content}" | sed '/^\s*$/d'
+}
+
+function repeatString(){
+
+    local -r string="${1}"
+    local -r numberToRepeat="${2}"
+
+    if [[ "${string}" != '' && "${numberToRepeat}" =~ ^[1-9][0-9]*$ ]]
+    then
+        local -r result="$(printf "%${numberToRepeat}s")"
+        echo -e "${result// /${string}}"
+    fi
+}
+
+function isEmptyString(){
+
+    local -r string="${1}"
+
+    if [[ "$(trimString "${string}")" = '' ]]
+    then
+        echo 'true' && return 0
+    fi
+
+    echo 'false' && return 1
+}
+
+function trimString(){
+
+    local -r string="${1}"
+    sed 's,^[[:blank:]]*,,' <<< "${string}" | sed 's,[[:blank:]]*$,,'
+}
+
+function extract_DUsers(){
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Enumerating Domain Users...${endColour}\n"
+	domain_users=$(rpcclient -U "${username}%${password}" $1 -c "enumdomusers" | grep -oP '\[.*?\]' | grep -v 0x | tr -d '[]')
+
+	echo "Users" > $tmp_file && for user in $domain_users; do echo "$user" >> $tmp_file; done
+
+	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	rm $tmp_file 2>/dev/null
+}
+
+function extract_DUsers_Info(){
+
+	extract_DUsers $1 > /dev/null 2>&1
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Listing domain users with description...${endColour}\n"
+
+	for user in $domain_users; do
+		rpcclient -U "${username}%${password}" $1 -c "queryuser $user" | grep -E 'User Name|Description' | cut -d ':' -f 2-100 | sed 's/\t//' | tr '\n' ',' | sed 's/.$//' >> $tmp_file
+		echo -e '\n' >> $tmp_file
+	done
+
+	echo "User,Description" > $tmp_file2
+
+	cat $tmp_file | sed '/^\s*$/d' | while read user_representation; do
+		if [ "$(echo $user_representation | awk '{print $2}' FS=',')" ]; then
+			echo "$(echo $user_representation | awk '{print $1}' FS=','),$(echo $user_representation | awk '{print $2}' FS=',')" >> $tmp_file2
+		fi
+	done
+
+	rm $tmp_file; mv $tmp_file2 $tmp_file
+	sleep 1; echo -ne "${blueColour}"; printTable ',' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	rm $tmp_file 2>/dev/null
+}
+
+function extract_DAUsers(){
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Enumerating Domain Admin Users...${endColour}\n"
+	rid_dagroup=$(rpcclient -U "${username}%${password}" $1 -c "enumdomgroups" | grep "Domain Admins" | awk 'NF{print $NF}' | grep -oP '\[.*?\]' | tr -d '[]')
+	rid_dausers=$(rpcclient -U "${username}%${password}" $1 -c "querygroupmem $rid_dagroup" | awk '{print $1}' | grep -oP '\[.*?\]' | tr -d '[]')
+
+	echo "DomainAdminUsers" > $tmp_file; for da_user_rid in $rid_dausers; do
+		rpcclient -U "${username}%${password}" $1 -c "queryuser $da_user_rid" | grep 'User Name'| awk 'NF{print $NF}' >> $tmp_file
+	done
+
+	echo -ne "${blueColour}"; printTable ' ' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	rm $tmp_file 2>/dev/null
+}
+
+function extract_DGroups(){
+
+	echo -e "\n${yellowColour}[*]${endColour}${grayColour} Enumerating Domain Groups...${endColour}\n"
+
+	rpcclient -U "${username}%${password}" $host_ip -c "enumdomgroups" | grep -oP '\[.*?\]' | grep "0x" | tr -d '[]' >> $tmp_file
+
+	echo "DomainGroup,Description" > $tmp_file2
+	cat $tmp_file | while read rid_domain_groups; do
+		rpcclient -U "${username}%${password}" $host_ip -c "querygroup $rid_domain_groups" | grep -E 'Group Name|Description' | sed 's/\t//' > $tmp_file3
+		group_name=$(cat $tmp_file3 | grep "Group Name" | awk '{print $2}' FS=":")
+		group_description=$(cat $tmp_file3 | grep "Description" | awk '{print $2}' FS=":")
+
+		echo "$(echo $group_name),$(echo $group_description)" >> $tmp_file2
+	done
+
+	rm $tmp_file $tmp_file3 2>/dev/null && mv $tmp_file2 $tmp_file
+	echo -ne "${blueColour}"; printTable ',' "$(cat $tmp_file)"; echo -ne "${endColour}"
+	rm $tmp_file 2>/dev/null
+}
+
+function extract_All(){
+	extract_DUsers $1
+	extract_DUsers_Info $1
+	extract_DAUsers $1
+	extract_DGroups $1
+}
+
+function beginEnumeration(){
+
+	tput civis; nmap -p139 --open -T5 -v -n $host_ip | grep open > /dev/null 2>&1 && port_status=$?
+	rpcclient -U "${username}%${password}" $host_ip -c "enumdomusers" > /dev/null 2>&1
+
+	if [ "$(echo $?)" == "0" ]; then
+		if [ "$port_status" == "0" ]; then
+			case $enum_mode in
+				DUsers)
+					extract_DUsers $host_ip
+					;;
+				DUsersInfo)
+					extract_DUsers_Info $host_ip
+					;;
+				DAUsers)
+					extract_DAUsers $host_ip
+					;;
+				DGroups)
+					extract_DGroups $host_ip
+					;;
+				All)
+					extract_All $host_ip
+					;;
+				*)
+					echo -e "\n${redColour}[!] Opción no válida${endColour}"
+					helpPanel
+					exit 1
+					;;
+			esac
+		else
+			echo -e "\n${redColour}Port 139 seems to be closed on $host_ip${endColour}"
+			tput cnorm; exit 0
+		fi
+	else
+		echo -e "\n${redColour}[!] Error: Access Denied${endColour}"
+		tput cnorm; exit 0
+	fi
+}
+
+# Main Function
+
+if [ "$(echo $UID)" == "0" ]; then
+	declare -i parameter_counter=0; while getopts ":e:i:u:p:h:" arg; do
+		case $arg in
+			e) enum_mode=$OPTARG; let parameter_counter+=1;;
+			i) host_ip=$OPTARG; let parameter_counter+=1;;
+                        u) username=$OPTARG; let parameter_counter+=1;;
+                        p) password=$OPTARG; let parameter_counter+=1;;
+                        h) helpPanel;;
+		esac
+	done
+
+	if [ $parameter_counter -ne 4 ]; then
+		helpPanel
+	else
+		beginEnumeration
+		tput cnorm
+	fi
+else
+	echo -e "\n${redColour}[*] It is necessary to run the program as root${endColour}\n"
+fi
